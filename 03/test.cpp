@@ -82,6 +82,55 @@ int main()
     check_equal(m7[1][1], 5 * 2 * 3 * 2);
     check_equal(m7[1][2], 6 * 2 * 3 * 2);
 
+    Matrix m8(2, 3);
+    n = 0;
+    for (int row = 0; row < 2; ++row)
+    {
+        for (int col = 0; col < 3; ++col)
+        {
+            m8[row][col] = ++n;
+        }
+    }
+
+    check_equal(m8[0][0], 1);
+    check_equal(m8[0][1], 2);
+    check_equal(m8[0][2], 3);
+    check_equal(m8[1][0], 4);
+    check_equal(m8[1][1], 5);
+    check_equal(m8[1][2], 6);
+
+    auto m9 = 2 * (m8 *= 2) *= 5;
+
+    check_equal(m8[0][0], 1 * 2);
+    check_equal(m8[0][1], 2 * 2);
+    check_equal(m8[0][2], 3 * 2);
+    check_equal(m8[1][0], 4 * 2);
+    check_equal(m8[1][1], 5 * 2);
+    check_equal(m8[1][2], 6 * 2);
+
+    check_equal(m9[0][0], 1 * 2 * 2 * 5);
+    check_equal(m9[0][1], 2 * 2 * 2 * 5);
+    check_equal(m9[0][2], 3 * 2 * 2 * 5);
+    check_equal(m9[1][0], 4 * 2 * 2 * 5);
+    check_equal(m9[1][1], 5 * 2 * 2 * 5);
+    check_equal(m9[1][2], 6 * 2 * 2 * 5);
+
+    auto m10 = (2 * m8 *= 5) *= 3;
+
+    check_equal(m8[0][0], 1 * 2);
+    check_equal(m8[0][1], 2 * 2);
+    check_equal(m8[0][2], 3 * 2);
+    check_equal(m8[1][0], 4 * 2);
+    check_equal(m8[1][1], 5 * 2);
+    check_equal(m8[1][2], 6 * 2);
+
+    check_equal(m10[0][0], 1 * 2 * 2 * 3 * 5);
+    check_equal(m10[0][1], 2 * 2 * 2 * 3 * 5);
+    check_equal(m10[0][2], 3 * 2 * 2 * 3 * 5);
+    check_equal(m10[1][0], 4 * 2 * 2 * 3 * 5);
+    check_equal(m10[1][1], 5 * 2 * 2 * 3 * 5);
+    check_equal(m10[1][2], 6 * 2 * 2 * 3 * 5);
+
     std::cout << "done\n";
 
     return 0;

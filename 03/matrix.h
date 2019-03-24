@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <stdexcept>
+#include <utility>
 
 template<typename T>
 class MatrixT {
@@ -10,27 +11,37 @@ class MatrixT {
     class VectorT {
         std::vector<T> _line;
     public:
-        T& operator[](int pos) { return _line.at(pos);}
-        const T& operator[](int pos) const { return _line.at(pos);}
+        T& operator[](size_t pos) { return _line.at(pos);}
+        const T& operator[](size_t pos) const { return _line.at(pos);}
 
         void resize(size_t size, T value = T()) { _line.resize(size, value);}
 
-        typename std::vector<T>::iterator begin() { return _line.begin();}
-        typename std::vector<T>::const_iterator begin() const { return _line.begin();}
-        typename std::vector<T>::iterator end() { return _line.end();}
-        typename std::vector<T>::const_iterator end() const { return _line.end();}
+        auto begin() { return _line.begin();}
+        auto begin() const { return _line.begin();}
+        auto end() { return _line.end();}
+        auto end() const { return _line.end();}
 
         bool operator==(const VectorT& other) const { return this->_line == other._line;}
         bool operator!=(const VectorT& other) const { return !(*this == other);}
     };
 
+    static void op_mult_assign_impl(MatrixT& obj, T value)
+    {
+        for (auto& line : obj._matrix) {
+            for (auto& element : line) {
+                element *= value;
+            }
+        }
+    }
+
 public:
     using value_type = T;
 
-    explicit MatrixT(int rows, int cols)
+    explicit MatrixT(size_t rows, size_t cols)
         : _rows(rows)
         , _cols(cols)
     {
+        static_assert(std::is_arithmetic_v<T>, "The type should be arithmetic!");
         if (_rows >= 0 && _cols >= 0)
         {
             _matrix.resize(rows);
@@ -43,8 +54,8 @@ public:
         }
     }
 
-    int getRows() const { return _rows;}
-    int getColumns() const { return _cols;}
+    size_t getRows() const { return _rows;}
+    size_t getColumns() const { return _cols;}
 
     bool operator==(const MatrixT& other) const
     {
@@ -52,7 +63,7 @@ public:
         if (this->_rows != other._rows ||
             this->_cols != other._cols) return false;
 
-        for (int i = 0; i < _rows; ++i)
+        for (size_t i = 0; i < _rows; ++i)
         {
             if ((*this)[i] != other[i]) return false;
         }
@@ -60,22 +71,15 @@ public:
     }
     bool operator!=(const MatrixT& other) const { return !(*this == other);}
 
-    const MatrixT& operator*=(T value)
-    {
-        for (auto& line : _matrix) {
-            for (auto& element : line) {
-                element *= value;
-            }
-        }
-        return *this;
-    }
+    MatrixT operator*=(T value) && { op_mult_assign_impl(*this, value); return std::move(*this);}
+    const MatrixT& operator*=(T value) & { op_mult_assign_impl(*this, value); return *this;}
 
     MatrixT operator*(T value) const
     {
         MatrixT result = MatrixT(_rows, _cols);
-        for (int i = 0; i != _rows; ++i)
+        for (size_t i = 0; i != _rows; ++i)
         {
-            for (int j = 0; j != _cols; ++j)
+            for (size_t j = 0; j != _cols; ++j)
             {
                 result[i][j] = (*this)[i][j] * value;
             }
@@ -83,13 +87,13 @@ public:
         return result;
     }
 
-    MatrixT::VectorT& operator[](int pos) { return _matrix.at(pos);}
-    const MatrixT::VectorT& operator[](int pos) const { return _matrix.at(pos);}
+    MatrixT::VectorT& operator[](size_t pos) { return _matrix.at(pos);}
+    const MatrixT::VectorT& operator[](size_t pos) const { return _matrix.at(pos);}
 
 private:
     std::vector<VectorT> _matrix;
-    int _rows;
-    int _cols;
+    size_t _rows;
+    size_t _cols;
 };
 
 template<typename T>
