@@ -25,15 +25,6 @@ class MatrixT {
         bool operator!=(const VectorT& other) const { return !(*this == other);}
     };
 
-    static void op_mult_assign_impl(MatrixT& obj, T value)
-    {
-        for (auto& line : obj._matrix) {
-            for (auto& element : line) {
-                element *= value;
-            }
-        }
-    }
-
 public:
     using value_type = T;
 
@@ -71,19 +62,20 @@ public:
     }
     bool operator!=(const MatrixT& other) const { return !(*this == other);}
 
-    MatrixT operator*=(T value) && { op_mult_assign_impl(*this, value); return std::move(*this);}
-    const MatrixT& operator*=(T value) & { op_mult_assign_impl(*this, value); return *this;}
+    MatrixT& operator*=(T value)
+    {
+        for (auto& line : this->_matrix) {
+            for (auto& element : line) {
+                element *= value;
+            }
+        }
+        return *this;
+    }
 
     MatrixT operator*(T value) const
     {
-        MatrixT result = MatrixT(_rows, _cols);
-        for (size_t i = 0; i != _rows; ++i)
-        {
-            for (size_t j = 0; j != _cols; ++j)
-            {
-                result[i][j] = (*this)[i][j] * value;
-            }
-        }
+        MatrixT result = *this;
+        result *= value;
         return result;
     }
 
