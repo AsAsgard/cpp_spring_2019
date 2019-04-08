@@ -42,7 +42,7 @@ public:
     template <class... ArgsT>
     Error operator()(ArgsT&&... args)
     {
-        if (_boolalphaActive) _out << std::boolalpha;
+        _out << std::noboolalpha;
         return process(std::forward<ArgsT>(args)...);
     }
 
@@ -52,14 +52,22 @@ private:
     template<typename T, typename... Args>
     Error process(T&& first, Args&&... args)
     {
+        if constexpr (std::is_same_v<std::remove_reference_t<T>, bool>) {
+            if (_boolalphaActive) _out << std::boolalpha;
+        }
         _out << first << Separator;
+        _out << std::noboolalpha;
         return process(std::forward<Args>(args)...);
     }
 
     template<typename T>
     Error process(T&& last)
     {
+        if constexpr (std::is_same_v<std::remove_reference_t<T>, bool>) {
+            if (_boolalphaActive) _out << std::boolalpha;
+        }
         _out << last << Separator;
+        _out << std::noboolalpha;
         return Error::NoError;
     }
 };
@@ -84,12 +92,6 @@ public:
     explicit Deserializer(std::istream& in, bool boolalphaActive = true)
         : SerializerGlobals(boolalphaActive), _in(in)
     {
-        _in.imbue(std::locale(_in.getloc(), new delim));  // удаление delim происходит в деструкторе std::locale
-    }
-
-    ~Deserializer()
-    {
-        _in.imbue(std::locale());
     }
 
     template <class T>
@@ -106,8 +108,10 @@ public:
     template<typename... Args>
     Error operator()(Args&&... args)
     {
-        if (_boolalphaActive) _in >> std::boolalpha;
-        return process(std::forward<Args>(args)...);
+        _in.imbue(std::locale(_in.getloc(), new delim));  // удаление delim происходит в деструкторе std::locale
+        Error err = process(std::forward<Args>(args)...);
+        _in.imbue(std::locale());
+        return err;
     }
 
 private:
@@ -116,13 +120,17 @@ private:
     template<typename T, typename... Args>
     Error process(T&& first, Args&&... args)
     {
-        if (std::is_unsigned<typename std::remove_reference<T>::type>::value) {
+        if constexpr (std::is_unsigned_v<std::remove_reference_t<T>>) {
             while (_in.peek() == Separator) { _in.get();}
             if (_in.peek() == '-') return Error::CorruptedArchive;
+        }
+        if constexpr (std::is_same_v<std::remove_reference_t<T>, bool>) {
+            if (_boolalphaActive) _in >> std::boolalpha;
         }
 
         _in >> first;
 
+        _in >> std::noboolalpha;
         if (_in && _in.peek()==Separator) {
             return process(std::forward<Args>(args)...);
         } else {
@@ -133,13 +141,17 @@ private:
     template<typename T>
     Error process(T&& last)
     {
-        if (std::is_unsigned<typename std::remove_reference<T>::type>::value) {
+        if constexpr (std::is_unsigned_v<std::remove_reference_t<T>>) {
             while (_in.peek() == Separator) { _in.get();}
             if (_in.peek() == '-') return Error::CorruptedArchive;
+        }
+        if constexpr (std::is_same_v<std::remove_reference_t<T>, bool>) {
+            if (_boolalphaActive) _in >> std::boolalpha;
         }
 
         _in >> last;
 
+        _in >> std::noboolalpha;
         while (_in.peek() == Separator) { _in.get();}
         if (_in.eof()) {
             return Error::NoError;
