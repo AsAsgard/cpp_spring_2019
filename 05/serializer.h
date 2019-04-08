@@ -12,12 +12,24 @@ enum class Error
 };
 
 
-class Serializer
-{
+class SerializerGlobals {
+protected:
     static constexpr char Separator = ' ';
+
+    bool _boolalphaActive = true;
+
+    explicit SerializerGlobals(bool boolalphaActive) : _boolalphaActive(boolalphaActive) {}
+
 public:
-    explicit Serializer(std::ostream& out)
-        : _out(out)
+    void setBoolalpha(bool checked) { _boolalphaActive = checked;}
+};
+
+
+class Serializer : public SerializerGlobals
+{
+public:
+    explicit Serializer(std::ostream& out, bool boolalphaActive = true)
+        : SerializerGlobals(boolalphaActive), _out(out)
     {
     }
 
@@ -30,7 +42,7 @@ public:
     template <class... ArgsT>
     Error operator()(ArgsT&&... args)
     {
-        _out << std::boolalpha;
+        if (_boolalphaActive) _out << std::boolalpha;
         return process(std::forward<ArgsT>(args)...);
     }
 
@@ -47,14 +59,13 @@ private:
     template<typename T>
     Error process(T&& last)
     {
-        _out << last;
+        _out << last << Separator;
         return Error::NoError;
     }
 };
 
 
-class Deserializer {
-    static constexpr char Separator = ' ';
+class Deserializer : public SerializerGlobals {
 
     struct delim : std::ctype<char> {
 
@@ -70,8 +81,8 @@ class Deserializer {
     };
 
 public:
-    explicit Deserializer(std::istream& in)
-        : _in(in)
+    explicit Deserializer(std::istream& in, bool boolalphaActive = true)
+        : SerializerGlobals(boolalphaActive), _in(in)
     {
         _in.imbue(std::locale(_in.getloc(), new delim));  // удаление delim происходит в деструкторе std::locale
     }
@@ -95,7 +106,7 @@ public:
     template<typename... Args>
     Error operator()(Args&&... args)
     {
-        _in >> std::boolalpha;
+        if (_boolalphaActive) _in >> std::boolalpha;
         return process(std::forward<Args>(args)...);
     }
 
