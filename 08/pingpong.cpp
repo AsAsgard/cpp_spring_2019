@@ -35,7 +35,7 @@ void pong()
     while (!ready)
     {
         pp = PingPong::PING;
-        cond.wait(lock);
+        while (pp != PingPong::PONG) cond.wait(lock);
         cout << "pong" << '\n';
     }
 }
