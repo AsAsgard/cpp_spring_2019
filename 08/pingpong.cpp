@@ -17,15 +17,15 @@ static bool ready = false;
 
 void ping(size_t N)
 {
+    unique_lock<mutex> lock(m);
     while (N != 0)
     {
-        while (pp != PingPong::PING) this_thread::yield();
-        unique_lock<mutex> lock(m);
         cout << "ping" << '\n';
         --N;
-        pp = PingPong::PONG;
         if (N == 0) ready = true;
+        pp = PingPong::PONG;
         cond.notify_one();
+        while (pp != PingPong::PING) cond.wait(lock);
     }
 }
 
@@ -34,9 +34,10 @@ void pong()
     unique_lock<mutex> lock(m);
     while (!ready)
     {
-        pp = PingPong::PING;
         while (pp != PingPong::PONG) cond.wait(lock);
         cout << "pong" << '\n';
+        pp = PingPong::PING;
+        cond.notify_one();
     }
 }
 
