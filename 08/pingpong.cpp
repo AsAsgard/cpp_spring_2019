@@ -13,16 +13,15 @@ enum class PingPong {
 static mutex m;
 static condition_variable cond;
 static PingPong pp;
-static bool ready = false;
+size_t N = 500000;
 
-void ping(size_t N)
+void ping()
 {
     unique_lock<mutex> lock(m);
     while (N != 0)
     {
         cout << "ping" << '\n';
         --N;
-        if (N == 0) ready = true;
         pp = PingPong::PONG;
         cond.notify_one();
         while (pp != PingPong::PING) cond.wait(lock);
@@ -32,7 +31,7 @@ void ping(size_t N)
 void pong()
 {
     unique_lock<mutex> lock(m);
-    while (!ready)
+    while (N != 0)
     {
         while (pp != PingPong::PONG) cond.wait(lock);
         cout << "pong" << '\n';
@@ -44,8 +43,7 @@ void pong()
 int main()
 {
     pp = PingPong::PONG;
-    size_t N = 500000;
     thread second_thread(pong);
-    ping(N);
+    ping();
     second_thread.join();
 }
