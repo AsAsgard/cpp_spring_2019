@@ -42,7 +42,7 @@ void pong()
 
 int main()
 {
-    pp = PingPong::PONG;
+    pp = PingPong::PING;
     thread second_thread(pong);
     ping();
     second_thread.join();
