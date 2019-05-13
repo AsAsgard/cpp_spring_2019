@@ -20,11 +20,11 @@ static const string input_filename = "input.bar";
 static const string output_filename = "output.bar";
 static mutex mut_read;
 
-void inplace_sort(ifstream& ifs, string th_filename) {
+int inplace_sort(ifstream& ifs, string th_filename) {
     ofstream ofs(th_filename, fstream::app | fstream::binary);
     if (!ofs) {
         cerr << "No permissions to overwrite output file.";
-        exit(1);
+        return 1;
     }
     vector<uint64_t> values;
     values.reserve(static_cast<size_t>(MAX_ELEMENTS / Nthreads));
@@ -51,6 +51,7 @@ void inplace_sort(ifstream& ifs, string th_filename) {
     }
     ended += 1;
     if (ended == Nthreads - 1) waiter.notify_one();
+    return 0;
 }
 
 
@@ -63,28 +64,27 @@ void remove_thread_files() {
 }
 
 
-template<size_t N>
-void external_merge(const string& output_fname, const array<string, N>& input_fnames)
+void external_merge(const string& output_fname, const array<string, Nthreads>& input_fnames)
 {
     ofstream ofilestream(output_fname, fstream::binary);
     if (!ofilestream) {
         cerr << "No permissions to overwrite output file.";
         exit(1);
     }
-    array<ifstream, N> ifilestreams;
-    array<uint64_t, N> values;
+    array<ifstream, Nthreads> ifilestreams;
+    array<uint64_t, Nthreads> values;
     vector<pair<size_t, uint64_t>> to_compare;
-    for (size_t i = 0; i < N; ++i)
+    for (size_t i = 0; i < Nthreads; ++i)
     {
         ifilestreams[i] = ifstream(input_fnames[i], fstream::binary);
         ifilestreams[i].read(reinterpret_cast<char *>(&values[i]), sizeof (uint64_t));
     }
     while (true) {
         to_compare.clear();
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < Nthreads; ++i)
         {
             if (ifilestreams[i]) {
-                to_compare.push_back(make_pair(i, values[i]));
+                to_compare.emplace_back(i, values[i]);
             }
         }
         if (to_compare.size() == 1) {
@@ -94,7 +94,7 @@ void external_merge(const string& output_fname, const array<string, N>& input_fn
         }
         auto it = min_element(to_compare.begin(),
                               to_compare.end(),
-                              [] (pair<size_t, uint64_t>& lhs, pair<size_t, uint64_t>& rhs) {
+                              [] (const auto& lhs, const auto& rhs) {
                                   return lhs.second < rhs.second;
                               });
         ofilestream.write(reinterpret_cast<char *>(&(it->second)), sizeof (uint64_t));
@@ -102,7 +102,7 @@ void external_merge(const string& output_fname, const array<string, N>& input_fn
     }
 }
 
-void external_merge_sort(string filename, size_t num_thread)
+int external_merge_sort(string filename, size_t num_thread)
 {
     string tmp_filename_1 = thread_filename;
     string tmp_filename_2 = thread_filename;
@@ -122,7 +122,8 @@ void external_merge_sort(string filename, size_t num_thread)
                 tmp_ofs_1 = ofstream(tmp_filename_1, fstream::binary);
                 if (retry_counter == 0) {
                     cerr << "Cannot open file for writing.";
-                    exit(2);
+                    remove(tmp_filename_2.c_str());
+                    return 2;
                 }
             }
             for (size_t retry_counter = 10; !tmp_ofs_2 && retry_counter > 0; --retry_counter) {
@@ -130,7 +131,8 @@ void external_merge_sort(string filename, size_t num_thread)
                 tmp_ofs_2 = ofstream(tmp_filename_2, fstream::binary);
                 if (retry_counter == 0) {
                     cerr << "Cannot open file for writing.";
-                    exit(2);
+                    remove(tmp_filename_1.c_str());
+                    return 2;
                 }
             }
 
@@ -212,12 +214,15 @@ void external_merge_sort(string filename, size_t num_thread)
     } while(count_elems > iter * static_cast<size_t>(MAX_ELEMENTS / Nthreads));
     remove(tmp_filename_1.c_str());
     remove(tmp_filename_2.c_str());
+    return 0;
 }
 
 int main()
 {
-    vector<future<void>> futures;
+    vector<future<int>> futures;
     ifstream ifilestream(input_filename, fstream::binary);
+    int return_code = 0;
+    bool need_to_exit = false;
 
     if (!ifilestream) {
         cerr << "Input file is not available.";
@@ -232,10 +237,16 @@ int main()
         futures.push_back(async(inplace_sort, ref(ifilestream), move(th_filename)));
     }
     for (auto& fut: futures) {
-        fut.wait();
+        return_code = fut.get();
+        if (return_code != 0) need_to_exit = true;
     }
     ended = 0;
     ifilestream.close();
+
+    if (need_to_exit) {
+        remove_thread_files();
+        return 1;
+    }
 
     futures.clear();
 
@@ -249,7 +260,13 @@ int main()
         futures.push_back(async(external_merge_sort, move(filename), th));
     }
     for (auto& fut: futures) {
-        fut.wait();
+        return_code = fut.get();
+        if (return_code != 0) need_to_exit = true;
+    }
+
+    if (need_to_exit) {
+        remove_thread_files();
+        return 1;
     }
 
     external_merge(output_filename, filenames);
