@@ -64,12 +64,12 @@ void remove_thread_files() {
 }
 
 
-void external_merge(const string& output_fname, const array<string, Nthreads>& input_fnames)
+int external_merge(const string& output_fname, const array<string, Nthreads>& input_fnames)
 {
     ofstream ofilestream(output_fname, fstream::binary);
     if (!ofilestream) {
         cerr << "No permissions to overwrite output file.";
-        exit(1);
+        return 1;
     }
     array<ifstream, Nthreads> ifilestreams;
     array<uint64_t, Nthreads> values;
@@ -100,6 +100,7 @@ void external_merge(const string& output_fname, const array<string, Nthreads>& i
         ofilestream.write(reinterpret_cast<char *>(&(it->second)), sizeof (uint64_t));
         ifilestreams[it->first].read(reinterpret_cast<char *>(&values[it->first]), sizeof (uint64_t));
     }
+    return 0;
 }
 
 int external_merge_sort(string filename, size_t num_thread)
@@ -269,9 +270,9 @@ int main()
         return 1;
     }
 
-    external_merge(output_filename, filenames);
+    return_code = external_merge(output_filename, filenames);
 
     remove_thread_files();
 
-    return 0;
+    return return_code;
 }
