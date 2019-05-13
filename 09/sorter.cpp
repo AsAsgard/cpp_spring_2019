@@ -19,7 +19,6 @@ static string thread_filename = "thread_";
 static const string input_filename = "input.bar";
 static const string output_filename = "output.bar";
 static mutex mut_read;
-static mutex mut_write;
 
 void inplace_sort(ifstream& ifs, string th_filename) {
     ofstream ofs(th_filename, fstream::app | fstream::binary);
@@ -165,7 +164,7 @@ void external_merge_sort(string filename, size_t num_thread)
                 size_t counter2 = 0;
                 bool need_to_read_1 = true;
                 bool need_to_read_2 = true;
-                uint64_t value1, value2;
+                uint64_t value1 = 0, value2 = 0;
                 while (tmp_ifs_1 && tmp_ifs_2 &&
                        counter1 < iter * static_cast<size_t>(MAX_ELEMENTS / Nthreads) &&
                        counter2 < iter * static_cast<size_t>(MAX_ELEMENTS / Nthreads)) {
